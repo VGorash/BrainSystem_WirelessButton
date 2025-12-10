@@ -18,30 +18,106 @@ RGBLED rgb(LED_R_PIN, LED_G_PIN, LED_B_PIN);
 
 constexpr RGB::Color colors[4] = {RGB::Color::Orange, RGB::Color::Blue, RGB::Color::Green, RGB::Color::Red};
 
-void OnDataSent(const wifi_tx_info_t* info, esp_now_send_status_t status)
+enum class State
+{
+  Idle,
+  Correct,
+  Falstart,
+  Pending,
+  Pairing
+};
+
+State state = State::Idle;
+bool ledDirty = true;
+RGB::Color currentColor = RGB::Color::Black;
+uint8_t currentBrightness = 128;
+
+unsigned long timeMarker;
+
+void processIdle()
+{
+
+}
+
+void processCorrect()
+{
+
+}
+
+void processFalstart()
+{
+  if(millis() - timeMarker >= 500)
+  {
+    timeMarker = millis();
+    currentBrightness = 128 - currentBrightness;
+    ledDirty = true;
+  }
+}
+
+void processPending()
+{
+  if(millis() - timeMarker >= 500)
+  {
+    timeMarker = millis();
+    currentBrightness = 128 - currentBrightness;
+    ledDirty = true;
+  }
+}
+
+void processPairing()
 {
 
 }
 
 void OnDataRecv(const esp_now_recv_info_t *info, const uint8_t *raw, int len)
 {
-  if(len != 1)
+  if (state != State::Pairing)
   {
-    return;
-  }
+    if(len != 1)
+    {
+      return;
+    }
 
-  unsigned char command = *raw & 0xF0;
-  unsigned char payload = *raw & 0x0F;
+    unsigned char command = *raw & 0xF0;
+    unsigned char payload = *raw & 0x0F;
 
-  if(command == LINK_CORRECT_PRESS_SIGNAL)
-  {
-    rgb.setColor(colors[payload % 4], 128);
-    return;
+    if(command == LINK_CORRECT_PRESS_SIGNAL)
+    {
+      currentColor = colors[payload % 4];
+      currentBrightness = 128;
+      ledDirty = true;
+      state = State::Correct;
+      return;
+    }
+    if(command == LINK_FALSTART_PRESS_SIGNAL)
+    {
+      currentColor = colors[payload % 4];
+      currentBrightness = 128;
+      ledDirty = true;
+      state = State::Falstart;
+      timeMarker = millis();
+      return;
+    }
+    if(command == LINK_PENDING_PRESS_SIGNAL)
+    {
+      currentColor = colors[payload % 4];
+      currentBrightness = 128;
+      ledDirty = true;
+      state = State::Pending;
+      timeMarker = millis();
+      return;
+    }
+    if(command = LINK_CLEAR)
+    {
+      currentColor = RGB::Color::Black;
+      ledDirty = true;
+      state = State::Idle;
+      return;
+    }
   }
-  if(command = LINK_CLEAR)
+  else
   {
-    rgb.setColor(RGB::Color::Black);
-    return;
+
   }
 }
 
@@ -56,7 +132,6 @@ void setup() {
     esp_wifi_set_protocol(WIFI_IF_STA, WIFI_PROTOCOL_LR);
 
     esp_now_init();
-    esp_now_register_send_cb(OnDataSent);
     esp_now_register_recv_cb(OnDataRecv);
 
     esp_now_peer_info_t peer = {};
@@ -78,9 +153,37 @@ void loop()
 {
   button.tick();
 
+  if(state == State::Pairing)
+  {
+    processPairing();
+    return;
+  }
+
   if(button.press())
   {
     uint8_t data = LINK_BUTTON_PRESSED;
     esp_now_send(serverMac, &data, 1);
+  }
+
+  switch(state)
+  {
+    case State::Idle:
+      processIdle();
+      break;
+    case State::Correct:
+      processCorrect();
+      break;
+    case State::Falstart:
+      processFalstart();
+      break;
+    case State::Pending:
+      processPending();
+      break;
+  }
+
+  if(ledDirty)
+  {
+    rgb.setColor(currentColor, currentBrightness);
+    ledDirty = false;
   }
 }
