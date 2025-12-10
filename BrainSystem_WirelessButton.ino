@@ -69,55 +69,63 @@ void processPairing()
 
 }
 
-void OnDataRecv(const esp_now_recv_info_t *info, const uint8_t *raw, int len)
+void processCommand(uint8_t data)
 {
-  if (state != State::Pairing)
+  if (state == State::Pairing)
   {
-    if(len != 1)
-    {
-      return;
-    }
-
-    unsigned char command = *raw & 0xF0;
-    unsigned char payload = *raw & 0x0F;
-
-    if(command == LINK_CORRECT_PRESS_SIGNAL)
-    {
-      currentColor = colors[payload % 4];
-      currentBrightness = 128;
-      ledDirty = true;
-      state = State::Correct;
-      return;
-    }
-    if(command == LINK_FALSTART_PRESS_SIGNAL)
-    {
-      currentColor = colors[payload % 4];
-      currentBrightness = 128;
-      ledDirty = true;
-      state = State::Falstart;
-      timeMarker = millis();
-      return;
-    }
-    if(command == LINK_PENDING_PRESS_SIGNAL)
-    {
-      currentColor = colors[payload % 4];
-      currentBrightness = 128;
-      ledDirty = true;
-      state = State::Pending;
-      timeMarker = millis();
-      return;
-    }
-    if(command = LINK_CLEAR)
-    {
-      currentColor = RGB::Color::Black;
-      ledDirty = true;
-      state = State::Idle;
-      return;
-    }
+    return;
   }
-  else
-  {
 
+  unsigned char command = data & 0xF0;
+  unsigned char payload = data & 0x0F;
+
+  if(command == LINK_CORRECT_PRESS_SIGNAL)
+  {
+    currentColor = colors[payload % 4];
+    currentBrightness = 128;
+    ledDirty = true;
+    state = State::Correct;
+    return;
+  }
+  if(command == LINK_FALSTART_PRESS_SIGNAL)
+  {
+    currentColor = colors[payload % 4];
+    currentBrightness = 128;
+    ledDirty = true;
+    state = State::Falstart;
+    timeMarker = millis();
+    return;
+  }
+  if(command == LINK_PENDING_PRESS_SIGNAL)
+  {
+    currentColor = colors[payload % 4];
+    currentBrightness = 128;
+    ledDirty = true;
+    state = State::Pending;
+    timeMarker = millis();
+    return;
+  }
+  if(command = LINK_CLEAR)
+  {
+    currentColor = RGB::Color::Black;
+    ledDirty = true;
+    state = State::Idle;
+    return;
+  }
+}
+
+void OnDataRecv(const esp_now_recv_info_t* info, const uint8_t* data, int len)
+{
+  if(len != 2)
+  {
+    return; // all correct Link packages have size 2
+  }
+
+  switch(data[0])
+  {
+    case LINK_WIRELESS_HEADER_COMMAND_V2:
+      processCommand(data[1]);
+      break;
   }
 }
 
@@ -161,8 +169,10 @@ void loop()
 
   if(button.press())
   {
-    uint8_t data = LINK_BUTTON_PRESSED;
-    esp_now_send(serverMac, &data, 1);
+    uint8_t data[2];
+    data[0] = LINK_WIRELESS_HEADER_COMMAND_V2;
+    data[1] = LINK_BUTTON_PRESSED;
+    esp_now_send(serverMac, data, 2);
   }
 
   switch(state)
