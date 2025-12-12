@@ -1,17 +1,17 @@
-#include <esp_now.h>
-#include <WiFi.h>
-#include <esp_wifi.h>
 #include <EncButton.h>
 #include <RGBLED.h>
 
+#define USE_ESP_NOW_LINK
 #include "src/Link/Codes.h"
+#include "src/Link/EspNowInterface.h"
 
 #define BUTTON_PIN 5
 #define LED_R_PIN 6
 #define LED_G_PIN 7
 #define LED_B_PIN 10
 
-uint8_t serverMac[] = {0x5C, 0x01, 0x3B, 0x66, 0xE3, 0x7C};
+uint8_t serverMac[6];
+uint8_t broadcastMac[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 Button button;
 RGBLED rgb(LED_R_PIN, LED_G_PIN, LED_B_PIN);
@@ -24,52 +24,20 @@ enum class State
   Correct,
   Falstart,
   Pending,
-  Pairing
+  Pairing,
+  Connecting
 };
 
-State state = State::Idle;
+State state = State::Connecting;
 bool ledDirty = true;
 RGB::Color currentColor = RGB::Color::Black;
 uint8_t currentBrightness = 128;
 
 unsigned long timeMarker;
 
-void processIdle()
-{
+vgs::link::EspNowInterface* interface;
 
-}
-
-void processCorrect()
-{
-
-}
-
-void processFalstart()
-{
-  if(millis() - timeMarker >= 500)
-  {
-    timeMarker = millis();
-    currentBrightness = 128 - currentBrightness;
-    ledDirty = true;
-  }
-}
-
-void processPending()
-{
-  if(millis() - timeMarker >= 500)
-  {
-    timeMarker = millis();
-    currentBrightness = 128 - currentBrightness;
-    ledDirty = true;
-  }
-}
-
-void processPairing()
-{
-
-}
-
-void processCommand(uint8_t data)
+void processCommand(const uint8_t* address, uint8_t data)
 {
   if (state == State::Pairing)
   {
@@ -114,18 +82,89 @@ void processCommand(uint8_t data)
   }
 }
 
-void OnDataRecv(const esp_now_recv_info_t* info, const uint8_t* data, int len)
+void processPingResponse(const uint8_t* address, uint8_t data)
 {
-  if(len != 2)
+  if(state == State::Connecting)
   {
-    return; // all correct Link packages have size 2
+    currentColor = RGB::Color::Black;
+    currentBrightness = 128;
+    ledDirty = true;
+    memcpy(serverMac, address, 6);
+    state = State::Idle;
   }
+}
 
-  switch(data[0])
+void processPairingResponse(const uint8_t* address, uint8_t data)
+{
+  
+}
+
+class EspNowHandler : public vgs::link::EspNowHandler
+{
+  void handleEspNowMessage(const uint8_t* address, uint8_t header, uint8_t data) override
   {
-    case LINK_WIRELESS_HEADER_COMMAND_V2:
-      processCommand(data[1]);
-      break;
+    switch(header)
+    {
+      case LINK_WIRELESS_HEADER_COMMAND_V2:
+        processCommand(address, data);
+        break;
+      case LINK_WIRELESS_HEADER_PING_RESPONSE:
+        processPingResponse(address, data);
+        break;
+      case LINK_WIRELESS_HEADER_PAIRING_RESPONSE:
+        processPairingResponse(address, data);
+        break;
+    }
+  }
+};
+
+EspNowHandler handler;
+
+void processIdle()
+{
+
+}
+
+void processCorrect()
+{
+
+}
+
+void processFalstart()
+{
+  if(millis() - timeMarker >= 500)
+  {
+    timeMarker = millis();
+    currentBrightness = 128 - currentBrightness;
+    ledDirty = true;
+  }
+}
+
+void processPending()
+{
+  if(millis() - timeMarker >= 500)
+  {
+    timeMarker = millis();
+    currentBrightness = 128 - currentBrightness;
+    ledDirty = true;
+  }
+}
+
+void processPairing()
+{
+
+}
+
+void processConnecting()
+{
+  if(millis() - timeMarker >= 500)
+  {
+    timeMarker = millis();
+    currentBrightness = 128 - currentBrightness;
+    currentColor = RGB::Color::White;
+    ledDirty = true;
+
+    interface->send(broadcastMac, LINK_WIRELESS_HEADER_PING_REQUEST, 0);
   }
 }
 
@@ -134,45 +173,36 @@ void setup() {
 
     button.init(BUTTON_PIN, INPUT);
 
-    WiFi.mode(WIFI_STA);
-    WiFi.setChannel(1);
+    interface = vgs::link::EspNowInterface::getInstance();
+    interface->setHandler(&handler);
+    WiFi.setSleep(false);
     WiFi.setTxPower(WIFI_POWER_17dBm);
-    esp_wifi_set_protocol(WIFI_IF_STA, WIFI_PROTOCOL_LR);
-
-    esp_now_init();
-    esp_now_register_recv_cb(OnDataRecv);
-
-    esp_now_peer_info_t peer = {};
-    memcpy(peer.peer_addr, serverMac, 6);
-    peer.channel = 1;
-    peer.encrypt = false;
-    peer.ifidx = WIFI_IF_STA;
-    esp_now_add_peer(&peer);
-
-    esp_now_rate_config_t config = {};
-    config.phymode = WIFI_PHY_MODE_LR;
-    config.rate = WIFI_PHY_RATE_LORA_250K;
-    config.ersu = false;  
-    config.dcm = false;
-    esp_now_set_peer_rate_config(serverMac, &config);
 }
 
 void loop() 
 {
   button.tick();
 
+  if(ledDirty)
+  {
+    rgb.setColor(currentColor, currentBrightness);
+    ledDirty = false;
+  }
+
   if(state == State::Pairing)
   {
     processPairing();
     return;
   }
+  if(state == State::Connecting)
+  {
+    processConnecting();
+    return;
+  }
 
   if(button.press())
   {
-    uint8_t data[2];
-    data[0] = LINK_WIRELESS_HEADER_COMMAND_V2;
-    data[1] = LINK_BUTTON_PRESSED;
-    esp_now_send(serverMac, data, 2);
+    interface->send(serverMac, LINK_WIRELESS_HEADER_COMMAND_V2, LINK_BUTTON_PRESSED);
   }
 
   switch(state)
@@ -189,11 +219,5 @@ void loop()
     case State::Pending:
       processPending();
       break;
-  }
-
-  if(ledDirty)
-  {
-    rgb.setColor(currentColor, currentBrightness);
-    ledDirty = false;
   }
 }
