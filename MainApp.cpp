@@ -1,4 +1,5 @@
 #include "MainApp.h"
+#include "PairingApp.h"
 #include "HalImpl.h"
 
 using namespace vgs;
@@ -15,10 +16,23 @@ void MainApp::init(IHal& hal)
 
 void MainApp::tick(IHal& hal)
 {
+  if(m_needPairing)
+  {
+    return;
+  }
+
   HalImpl* halImpl = (HalImpl*) &hal;
   WirelessLink& link = halImpl->getLink();
 
-  if(hal.getButtonState().player >= 0)
+  ButtonState buttonState = hal.getButtonState();
+
+  if(buttonState.menu)
+  {
+    m_needPairing = true;
+    return;
+  }
+
+  if(buttonState.player >= 0)
   {
     link.send(link::Command::ButtonPressed);
   }
@@ -47,10 +61,15 @@ void MainApp::tick(IHal& hal)
 
 AppChangeType MainApp::appChangeNeeded()
 {
+  if(m_needPairing)
+  {
+    return AppChangeType::Custom;
+  }
+
   return AppChangeType::None;
 }
 
 IApp* MainApp::createCustomApp()
 {
-  return nullptr;
+  return new PairingApp(true);
 }

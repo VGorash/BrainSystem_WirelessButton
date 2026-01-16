@@ -16,6 +16,9 @@ public:
 
   AppChangeType appChangeNeeded() override;
   IApp* createCustomApp() override;
+
+private:
+  bool m_needPairing = false;
 };
 
 } // namespace vgs

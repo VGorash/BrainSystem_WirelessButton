@@ -15,7 +15,6 @@ void WirelessLink::init()
   m_interface->setHandler(this);
   WiFi.setSleep(false);
   WiFi.setTxPower(WIFI_POWER_17dBm);
-  m_initialized = false;
 }
 
 void WirelessLink::tick()
@@ -40,7 +39,7 @@ unsigned int WirelessLink::getData()
 
 void WirelessLink::send(Command command, unsigned int data)
 {
-  if(!m_initialized)
+  if(!m_paired)
   {
     return;
   }
@@ -53,21 +52,36 @@ void WirelessLink::send(Command command, unsigned int data)
   }
 }
 
-bool WirelessLink::isInitialized()
+bool WirelessLink::isPaired()
 {
-  return m_initialized;
+  return m_paired;
 }
 
-void WirelessLink::sendPairingRequest()
+void WirelessLink::resetPairing()
 {
-  m_interface->send(broadcastAddress, LINK_WIRELESS_HEADER_PING_REQUEST, 0);
-  //m_interface->send(broadcastAddress, LINK_WIRELESS_HEADER_PAIRING_REQUEST, LINK_WIRELESS_DEVICE_BUTTON);
+  m_paired = false;
 }
 
-void WirelessLink::onPingResponse(const uint8_t* address, uint8_t data)
+void WirelessLink::tryPairing()
+{
+  m_interface->send(broadcastAddress, LINK_WIRELESS_HEADER_PAIRING_REQUEST, LINK_WIRELESS_DEVICE_BUTTON);
+}
+
+void WirelessLink::setServerAddress(const uint8_t* address)
 {
   memcpy(m_serverAddress, address, 6);
-  m_initialized = true;
+  m_paired = true;
+}
+
+const uint8_t* WirelessLink::getServerAddress()
+{
+  return m_serverAddress;
+}
+
+void WirelessLink::onPairingResponse(const uint8_t* address, uint8_t data)
+{
+  memcpy(m_serverAddress, address, 6);
+  m_paired = true;
 }
 
 bool checkAddressEqual(const uint8_t* a, const uint8_t* b)
@@ -87,7 +101,7 @@ bool checkAddressEqual(const uint8_t* a, const uint8_t* b)
 
 void WirelessLink::onCommandV2(const uint8_t* address, uint8_t data)
 {
-  if(!m_initialized || !checkAddressEqual(address, m_serverAddress))
+  if(!m_paired || !checkAddressEqual(address, m_serverAddress))
   {
     return;
   }

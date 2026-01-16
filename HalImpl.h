@@ -3,6 +3,7 @@
 
 #include <EncButton.h>
 #include <RGBLED.h>
+#include <Preferences.h>
 
 #include "src/Framework/Core/Hal.h"
 #include "src/Framework/Timer.h"
@@ -47,6 +48,9 @@ public:
   // link
   WirelessLink& getLink();
 
+  //preferences
+  Preferences& getPreferences();
+
 private:
   void blinkLed(int player);
 
@@ -57,6 +61,8 @@ private:
 
   vgs::Timer m_blinkTimer;
   bool m_blinkState = 0;
+
+  Preferences m_preferences;
 };
 
 #endif

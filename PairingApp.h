@@ -10,7 +10,7 @@ namespace vgs
 class PairingApp : public IApp
 {
 public:
-  PairingApp();
+  PairingApp(bool resetPairing = false);
 
   void init(IHal& hal) override;
   void tick(IHal& hal) override;
@@ -19,7 +19,13 @@ public:
   IApp* createCustomApp() override;
 
 private:
-  bool m_paired = false;
+  bool loadServerAddress(IHal& hal);
+  void saveServerAddress(IHal& hal);
+  void clearServerAddress(IHal& hal);
+
+private:
+  bool m_resetPairing;
+  bool m_needExit = false;
   bool m_blinkState = false;
   Timer m_timer;
 };

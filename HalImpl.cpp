@@ -27,6 +27,9 @@ void HalImpl::init()
 
   m_blinkTimer.setTime(500);
   m_blinkTimer.setPeriodMode(true);
+  
+  m_button.setTimeout(4000);
+  m_button.setHoldTimeout(3000);
 }
 
 void HalImpl::tick()
@@ -48,6 +51,11 @@ ButtonState HalImpl::getButtonState()
   if(m_button.press())
   {
     s.player = 0;
+  }
+
+  if(m_button.hold())
+  {
+    s.menu = true;
   }
 
   return s;
@@ -117,4 +125,9 @@ unsigned long HalImpl::getTimeMillis()
 WirelessLink& HalImpl::getLink()
 {
   return m_link;
+}
+
+Preferences& HalImpl::getPreferences()
+{
+  return m_preferences;
 }
