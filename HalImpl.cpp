@@ -1,9 +1,7 @@
 #include "HalImpl.h"
+#include "src/Framework/colors.h"
 
 using namespace vgs;
-
-#define NUM_COLORS 4
-constexpr RGB::Color colors[NUM_COLORS] = {RGB::Color::Orange, RGB::Color::Blue, RGB::Color::Green, RGB::Color::Red};
 
 HalImpl::HalImpl() : m_rgb(LED_R_PIN, LED_G_PIN, LED_B_PIN)
 {
@@ -61,9 +59,19 @@ ButtonState HalImpl::getButtonState()
   return s;
 }
 
+Color convertColor(Color color)
+{
+  Color result{};
+  result.r = (unsigned char)((float)color.r * 1.0);
+  result.g = (unsigned char)((float)color.g * 0.6);
+  result.b = (unsigned char)((float)color.b * 0.5);
+  return result;
+}
+
 void HalImpl::blinkLed(int player)
 {
-  m_rgb.setColor(colors[player % NUM_COLORS]);
+  Color color = convertColor(colorFromPlayerNumber(player));
+  m_rgb.setRGB(color.r, color.g, color.b);
   m_rgb.enable();
 
   if(!m_blinkTimer.isStarted())
@@ -80,7 +88,8 @@ void HalImpl::correctPressSignal(int player)
     return;
   }
 
-  m_rgb.setColor(colors[player % NUM_COLORS]);
+  Color color = convertColor(colorFromPlayerNumber(player));
+  m_rgb.setRGB(color.r, color.g, color.b);
   m_rgb.enable();
 }
 
