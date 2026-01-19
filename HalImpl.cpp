@@ -1,6 +1,15 @@
 #include "HalImpl.h"
 #include "src/Framework/colors.h"
 
+#define BUTTON_PIN 5
+#define LED_R_PIN 6
+#define LED_G_PIN 7
+#define LED_B_PIN 10
+
+#define BATTERY_VOLTAGE_PIN 3
+#define BATTERY_VOLTAGE_R1 100000.0 // 100k resistor
+#define BATTERY_VOLTAGE_R2 100000.0 // 100k resistor
+
 using namespace vgs;
 
 HalImpl::HalImpl() : m_rgb(LED_R_PIN, LED_G_PIN, LED_B_PIN)
@@ -28,6 +37,10 @@ void HalImpl::init()
   
   m_button.setTimeout(4000);
   m_button.setHoldTimeout(3000);
+
+  analogReadResolution(12);
+  analogSetPinAttenuation(BATTERY_VOLTAGE_PIN, ADC_11db);
+  loadBatteryCalibrationData();
 }
 
 void HalImpl::tick()
@@ -139,4 +152,22 @@ WirelessLink& HalImpl::getLink()
 Preferences& HalImpl::getPreferences()
 {
   return m_preferences;
+}
+
+constexpr const char* batteryNamespaceKey = "battery";
+constexpr const char* batterySlopeKey = "slope";
+constexpr const char* batteryOffsetKey = "offset";
+
+void HalImpl::loadBatteryCalibrationData()
+{
+  m_preferences.begin(batteryNamespaceKey, true);
+  m_batteryCalibrationSlope = m_preferences.getFloat(batterySlopeKey, 2.5f / 4095.0f);
+  m_batteryCalibrationOffset = m_preferences.getFloat(batteryOffsetKey, 0.0f);
+  m_preferences.end();
+}
+
+float HalImpl::getBatteryVoltage()
+{
+  constexpr float dividerRatio = (BATTERY_VOLTAGE_R1 + BATTERY_VOLTAGE_R2) / BATTERY_VOLTAGE_R2;
+  return dividerRatio * (analogRead(BATTERY_VOLTAGE_PIN) * m_batteryCalibrationSlope + m_batteryCalibrationOffset);
 }

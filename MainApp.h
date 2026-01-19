@@ -2,6 +2,7 @@
 #define MAIN_APP_H
 
 #include "src/Framework/Core/App.h"
+#include "src/Framework/Timer.h"
 
 namespace vgs
 {
@@ -18,7 +19,16 @@ public:
   IApp* createCustomApp() override;
 
 private:
+  bool checkBattery(IHal& hal);
+
+private:
+  bool m_idleState = true;
   bool m_needPairing = false;
+
+  Timer m_batteryCheckTimer;
+  Timer m_batterySignalTimer;
+  float m_batteryVoltageSum;
+  int m_numBatteryMeasurments;
 };
 
 } // namespace vgs

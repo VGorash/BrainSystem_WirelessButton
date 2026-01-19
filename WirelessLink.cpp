@@ -52,6 +52,16 @@ void WirelessLink::send(Command command, unsigned int data)
   }
 }
 
+void WirelessLink::sendBatteryInfo(uint8_t percentage)
+{
+  if(!m_paired)
+  {
+    return;
+  }
+
+  m_interface->send(m_serverAddress, LINK_WIRELESS_HEADER_BATTERY_INFO, percentage);
+}
+
 bool WirelessLink::isPaired()
 {
   return m_paired;

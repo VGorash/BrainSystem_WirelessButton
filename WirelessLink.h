@@ -19,11 +19,14 @@ public:
   void send(vgs::link::Command command, unsigned int data = 0) override;
 
   // Custom
+  // pairing
   bool isPaired();
   void resetPairing();
   void tryPairing();
   void setServerAddress(const uint8_t* address); // force pairing
   const uint8_t* getServerAddress();
+  // battery
+  void sendBatteryInfo(uint8_t percentage);
 
 private:
   // EspNowHandler methods

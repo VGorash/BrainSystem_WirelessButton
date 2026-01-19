@@ -10,11 +10,6 @@
 
 #include "WirelessLink.h"
 
-#define BUTTON_PIN 5
-#define LED_R_PIN 6
-#define LED_G_PIN 7
-#define LED_B_PIN 10
-
 class HalImpl : public vgs::IHal
 {
 public:
@@ -51,8 +46,13 @@ public:
   //preferences
   Preferences& getPreferences();
 
+  //battery
+  float getBatteryVoltage();
+
 private:
   void blinkLed(int player);
+
+  void loadBatteryCalibrationData();
 
 private:
   WirelessLink m_link;
@@ -63,6 +63,9 @@ private:
   bool m_blinkState = 0;
 
   Preferences m_preferences;
+
+  float m_batteryCalibrationSlope = 2.5f / 4095.0f;
+  float m_batteryCalibrationOffset = 0.0f;
 };
 
 #endif
