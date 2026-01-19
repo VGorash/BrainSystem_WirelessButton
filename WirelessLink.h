@@ -32,6 +32,7 @@ private:
   // EspNowHandler methods
   void onCommandV2(const uint8_t* address, uint8_t data) override;
   void onPairingResponse(const uint8_t* address, uint8_t data) override;
+  void onPingRequest(const uint8_t* address, uint8_t data) override;
 
 private:
   vgs::link::EspNowInterface* m_interface = nullptr;

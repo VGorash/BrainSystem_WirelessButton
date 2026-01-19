@@ -109,6 +109,16 @@ bool checkAddressEqual(const uint8_t* a, const uint8_t* b)
   return equal;
 }
 
+void WirelessLink::onPingRequest(const uint8_t* address, uint8_t data)
+{
+  if(!m_paired || !checkAddressEqual(address, m_serverAddress))
+  {
+    return;
+  }
+
+  m_interface->send(address, LINK_WIRELESS_HEADER_PING_RESPONSE, data);
+}
+
 void WirelessLink::onCommandV2(const uint8_t* address, uint8_t data)
 {
   if(!m_paired || !checkAddressEqual(address, m_serverAddress))
