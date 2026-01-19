@@ -94,7 +94,7 @@ void MainApp::tick(IHal& hal)
 
 int mapBatteryPercentage(float voltage)
 {
-  constexpr float voltageEmpty = 3.3;  // 0%
+  constexpr float voltageEmpty = 3.4;  // 0%
   constexpr float voltageFull = 4.2;   // 100%
 
   int percentage = (int)((voltage - voltageEmpty) / (voltageFull - voltageEmpty) * 100);
